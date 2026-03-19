@@ -461,21 +461,18 @@ function syncToSheet(adId, status, comment) {
   if (!SHEET_ENABLED) return;
   const reviewer = JSON.parse(localStorage.getItem('nurelm_reviewer') || '{}');
   const ad = ads.find(a => a.id === adId);
-  fetch(SHEET_URL, {
-    method: 'POST',
-    mode: 'no-cors',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      action: 'review',
-      reviewer: reviewer.name || 'unknown',
-      role: reviewer.role || '',
-      adId: adId,
-      theme: ad?.theme || '',
-      headline: ad?.headline || '',
-      status: status,
-      comment: comment || '',
-    }),
-  }).catch(() => {});
+  const params = new URLSearchParams({
+    action: 'review',
+    reviewer: reviewer.name || 'unknown',
+    role: reviewer.role || '',
+    adId: adId,
+    theme: ad?.theme || '',
+    headline: ad?.headline || '',
+    status: status,
+    comment: comment || '',
+  });
+  const img = new Image();
+  img.src = SHEET_URL + '?' + params.toString();
 }
 
 // Review system (localStorage)

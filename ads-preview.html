@@ -453,6 +453,31 @@ function enterReview() {
   }
 })();
 
+// Google Sheet backend (set this URL after deploying the Apps Script)
+const SHEET_URL = 'PASTE_YOUR_GOOGLE_APPS_SCRIPT_URL_HERE';
+const SHEET_ENABLED = SHEET_URL !== 'PASTE_YOUR_GOOGLE_APPS_SCRIPT_URL_HERE';
+
+function syncToSheet(adId, status, comment) {
+  if (!SHEET_ENABLED) return;
+  const reviewer = JSON.parse(localStorage.getItem('nurelm_reviewer') || '{}');
+  const ad = ads.find(a => a.id === adId);
+  fetch(SHEET_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'review',
+      reviewer: reviewer.name || 'unknown',
+      role: reviewer.role || '',
+      adId: adId,
+      theme: ad?.theme || '',
+      headline: ad?.headline || '',
+      status: status,
+      comment: comment || '',
+    }),
+  }).catch(() => {});
+}
+
 // Review system (localStorage)
 function getReviews() {
   try { return JSON.parse(localStorage.getItem('nurelm_reviews') || '{}'); } catch { return {}; }
@@ -465,6 +490,7 @@ function setReview(id, status) {
   if (!reviews[id]) reviews[id] = {};
   reviews[id].status = reviews[id].status === status ? '' : status;
   localStorage.setItem('nurelm_reviews', JSON.stringify(reviews));
+  syncToSheet(id, reviews[id].status || 'cleared', reviews[id].comment || '');
   filterAds();
   updateSummary();
 }
@@ -474,6 +500,7 @@ function setComment(id, comment) {
   if (!reviews[id]) reviews[id] = {};
   reviews[id].comment = comment;
   localStorage.setItem('nurelm_reviews', JSON.stringify(reviews));
+  syncToSheet(id, reviews[id].status || 'pending', comment);
   updateSummary();
 }
 

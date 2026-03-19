@@ -77,6 +77,21 @@
   .export-btn { margin-left: auto; padding: 8px 20px; background: #0a66c2; color: white; border: none; border-radius: 20px; cursor: pointer; font-size: 14px; font-weight: 600; }
   .export-btn:hover { background: #004182; }
 
+  .landing-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 200; display: flex; align-items: center; justify-content: center; }
+  .landing-card { background: white; border-radius: 12px; padding: 40px; max-width: 520px; width: 90%; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+  .landing-card h2 { font-size: 24px; margin-bottom: 6px; }
+  .landing-card p { font-size: 14px; color: #666; margin-bottom: 24px; line-height: 1.5; }
+  .landing-card .logo-row { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+  .landing-card .logo-row .vm { font-size: 13px; color: #999; }
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color: #333; }
+  .form-group input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+  .form-group input:focus { border-color: #0a66c2; outline: none; }
+  .form-submit { width: 100%; padding: 12px; background: #0a66c2; color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+  .form-submit:hover { background: #004182; }
+  .form-submit:disabled { background: #ccc; cursor: not-allowed; }
+  .welcome-badge { display: inline-block; padding: 4px 12px; background: #e8f0fe; color: #0a66c2; border-radius: 12px; font-size: 12px; font-weight: 600; margin-bottom: 16px; }
+
   .campaign-section { padding: 0 40px; }
   .campaign-title { font-size: 20px; font-weight: 700; padding: 24px 0 8px; color: #333; border-bottom: 2px solid #0a66c2; margin-bottom: 0; display: flex; align-items: center; gap: 10px; }
   .campaign-title .badge { background: #0a66c2; color: white; font-size: 12px; padding: 2px 10px; border-radius: 10px; }
@@ -102,6 +117,30 @@
 </style>
 </head>
 <body>
+
+<div class="landing-overlay" id="landingOverlay">
+  <div class="landing-card">
+    <div class="logo-row">
+      <svg width="36" height="36" viewBox="0 0 36 36"><rect width="36" height="36" rx="6" fill="#7b3fa0"/><text x="18" y="24" text-anchor="middle" fill="white" font-size="18" font-weight="700">N</text></svg>
+      <div>
+        <div style="font-weight:700;font-size:18px">NuRelm</div>
+        <div class="vm">Prepared by Vision Media</div>
+      </div>
+    </div>
+    <span class="welcome-badge">LinkedIn Ads Review</span>
+    <h2>100 LinkedIn Ads Ready for Review</h2>
+    <p>Browse each ad, approve or reject it, and leave comments. Your feedback is saved automatically and can be exported as a CSV when you're done.</p>
+    <div class="form-group">
+      <label>Your Name</label>
+      <input type="text" id="reviewerName" placeholder="e.g. Sam Shaaban" autocomplete="name">
+    </div>
+    <div class="form-group">
+      <label>Your Role (optional)</label>
+      <input type="text" id="reviewerRole" placeholder="e.g. CEO, Marketing Director">
+    </div>
+    <button class="form-submit" id="startReview" onclick="enterReview()">Start Reviewing</button>
+  </div>
+</div>
 
 <div class="header">
   <div>
@@ -397,6 +436,23 @@ function setView(view) {
   document.getElementById('adsTable').style.display = view === 'table' ? 'block' : 'none';
 }
 
+// Landing form
+function enterReview() {
+  const name = document.getElementById('reviewerName').value.trim();
+  if (!name) { document.getElementById('reviewerName').style.borderColor='#cc1016'; return; }
+  const role = document.getElementById('reviewerRole').value.trim();
+  localStorage.setItem('nurelm_reviewer', JSON.stringify({ name, role, enteredAt: new Date().toISOString() }));
+  document.getElementById('landingOverlay').style.display = 'none';
+}
+
+// Check if already entered
+(function() {
+  const reviewer = localStorage.getItem('nurelm_reviewer');
+  if (reviewer) {
+    document.getElementById('landingOverlay').style.display = 'none';
+  }
+})();
+
 // Review system (localStorage)
 function getReviews() {
   try { return JSON.parse(localStorage.getItem('nurelm_reviews') || '{}'); } catch { return {}; }
@@ -437,17 +493,19 @@ function updateSummary() {
 
 function exportReview() {
   const reviews = getReviews();
-  let csv = 'Ad_ID,Theme,Status,Comment,Headline\\n';
+  const reviewer = JSON.parse(localStorage.getItem('nurelm_reviewer') || '{}');
+  let csv = 'Ad_ID,Theme,Status,Comment,Headline,Intro_Text,Reviewer\\n';
   ads.forEach(ad => {
     const r = reviews[ad.id] || {};
     const status = r.status || 'pending';
     const comment = (r.comment || '').replace(/"/g, '""');
-    csv += `${ad.id},"${ad.theme}",${status},"${comment}","${ad.headline}"\\n`;
+    const intro = ad.intro.replace(/"/g, '""');
+    csv += `${ad.id},"${ad.theme}",${status},"${comment}","${ad.headline}","${intro}","${reviewer.name || 'unknown'}"\\n`;
   });
   const blob = new Blob([csv.replace(/\\n/g, '\n')], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = 'nurelm-ads-review.csv'; a.click();
+  a.href = url; a.download = 'nurelm-ads-review-' + (reviewer.name || 'export').toLowerCase().replace(/\s+/g,'-') + '.csv'; a.click();
 }
 
 // Initial render
